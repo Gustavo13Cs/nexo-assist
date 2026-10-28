@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+@theme {
+  --color-nexo-paper: #FFFFFF;
+  --color-nexo-desk: #F6F7F9;
+  --color-nexo-ink: #1B2431;
+  --color-nexo-ink-2: #3D4656;
+  --color-nexo-ink-3: #5B6472;
+  --color-nexo-rule: #E6E8EC;
+  --color-nexo-cta: #0062C4;
+  --color-nexo-primary: #0285F7;
+  --color-nexo-primary-hover: #0071D6;
+  --color-nexo-primary-soft: rgba(2, 133, 247, 0.08);
+  --color-nexo-primary-text: #0069C7;
+  --color-nexo-success: #00BD6C;
+  --color-nexo-success-soft: rgba(0, 189, 108, 0.09);
+  --color-nexo-success-text: #00804A;
+  --color-nexo-warning: #F5A500;
+  --color-nexo-warning-soft: rgba(245, 165, 0, 0.1);
+  --color-nexo-warning-text: #946300;
+  --color-nexo-danger: #EE343B;
+  --color-nexo-danger-soft: rgba(238, 52, 59, 0.08);
+  --color-nexo-danger-text: #C4161D;
+  --color-nexo-violet: #A37AFF;
+  --color-nexo-violet-soft: rgba(163, 122, 255, 0.1);
+  --color-nexo-violet-text: #6B3FE0;
+}
+
+:root {
+  --background: #FFFFFF;
+  --foreground: #1B2431;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar for clean UI */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #E6E8EC;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #CBD5E1;
+}
