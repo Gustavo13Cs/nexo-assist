@@ -1,0 +1,22 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nexo-assist
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+      - NEXT_PUBLIC_APP_URL=http://localhost:3000
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - SIMULATE_LEGACY_FLAKINESS=${SIMULATE_LEGACY_FLAKINESS:-false}
+    volumes:
+      - nexo-data:/app/prisma
+
+volumes:
+  nexo-data:
+    driver: local

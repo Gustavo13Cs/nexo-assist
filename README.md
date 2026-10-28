@@ -4,20 +4,53 @@ Solução desenvolvida para o desafio prático de contratação da Nexo. O **Nex
 
 ---
 
-## 🚀 Como Rodar Localmente
+## 🚀 Como Rodar a Aplicação
 
-A aplicação foi desenhada para rodar em poucos comandos de forma simples e sem dependências externas complexas.
+Você pode executar o **Nexo Assist** de duas maneiras: diretamente via **Docker** (recomendado para homologação em container isolado) ou localmente via **Node.js**.
 
-### Pré-requisitos
+---
+
+### Opção 1: Executar via Docker (Recomendado — 1 Comando)
+
+O projeto conta com `Dockerfile` e `docker-compose.yml` prontos para produção com persistência automática do SQLite via volume.
+
+#### 1. Iniciar o Container
+```bash
+docker compose up --build -d
+```
+O container executará automaticamente a compilação, o sync do schema (`npx prisma db push`), o seed dos dados (`npm run seed`) e subirá o servidor Next.js em modo de produção.
+
+#### 2. Acessar a Aplicação
+Acesse no seu navegador: **[http://localhost:3000](http://localhost:3000)**
+
+#### Comandos Úteis do Docker:
+* **Ver logs em tempo real:**
+  ```bash
+  docker compose logs -f app
+  ```
+* **Parar o container:**
+  ```bash
+  docker compose down
+  ```
+* **Executar os testes automatizados dentro do container:**
+  ```bash
+  docker compose exec app npm test
+  ```
+
+---
+
+### Opção 2: Executar no Host Local (Node.js)
+
+#### Pré-requisitos
 * Node.js v18+ (homologado no Node v24)
 * npm v9+
 
-### 1. Instalar Dependências
+#### 1. Instalar Dependências
 ```bash
 npm install
 ```
 
-### 2. Configurar Variáveis de Ambiente
+#### 2. Configurar Variáveis de Ambiente
 O projeto conta com o arquivo `.env.example`. Copie para `.env`:
 ```bash
 cp .env.example .env
@@ -25,7 +58,7 @@ cp .env.example .env
 > **Nota sobre o Provedor de LLM (Gemini):**
 > Você pode rodar **100% de graça**! No [Google AI Studio](https://aistudio.google.com), a API do Gemini possui um **Free Tier sem custo (R$ 0,00)**. Caso deseje chamadas ao modelo, basta colocar sua chave em `GEMINI_API_KEY`. Se **não colocar nenhuma chave**, o Nexo Assist aciona automaticamente seu motor autônomo local, que interpreta qualquer mensagem (impressora, mouse, Office, VPN, SAP) e aplica as regras do Anexo A sem falhas e sem custo.
 
-### 3. Sincronizar o Banco de Dados e Rodar o Seed
+#### 3. Sincronizar o Banco de Dados e Rodar o Seed
 O projeto utiliza **SQLite** com **Prisma ORM**, persistindo todos os dados no arquivo local `prisma/dev.db`:
 ```bash
 # Cria as tabelas no SQLite local
@@ -35,13 +68,13 @@ npx prisma db push
 npm run seed
 ```
 
-### 4. Iniciar a Aplicação
+#### 4. Iniciar a Aplicação
 ```bash
 npm run dev
 ```
 Acesse no navegador: **[http://localhost:3000](http://localhost:3000)**
 
-### 5. Executar a Suíte de Testes Automatizados
+#### 5. Executar a Suíte de Testes Automatizados
 ```bash
 npm test
 ```
