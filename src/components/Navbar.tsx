@@ -25,7 +25,7 @@ export function Navbar({ currentUser, onUserChange }: NavbarProps) {
   const personas = [
     { name: "Ana Souza", email: "ana.souza@nexo.com.br", role: "Funcionária (Financeiro)", initials: "AS" },
     { name: "Carla Mendes", email: "carla.mendes@nexo.com.br", role: "Funcionária (Vendas)", initials: "CM" },
-    { name: "Bruno Tavares", email: "bruno.tavares@nexo.com.br", role: "Funcionário (Baixa Confiança)", initials: "BT" },
+    { name: "Bruno Tavares", email: "bruno.tavares@nexo.com.br", role: "Funcionário (Marketing)", initials: "BT" },
     { name: "Rafael Lima", email: "rafael.lima@nexo.com.br", role: "Analista (Suporte N2)", initials: "RL" },
   ];
 
@@ -50,7 +50,7 @@ export function Navbar({ currentUser, onUserChange }: NavbarProps) {
   };
 
   const handleLogout = async () => {
-    document.cookie = "nexo_user_id=; Max-Age=0; path=/";
+    await fetch("/api/auth/logout", { method: "POST" });
     router.push("/login");
   };
 
@@ -105,17 +105,20 @@ export function Navbar({ currentUser, onUserChange }: NavbarProps) {
           Meu perfil
         </Link>
 
-        <Link
-          href="/analyst"
-          className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
-            pathname.startsWith("/analyst")
-              ? "bg-white text-nexo-cta shadow-2xs font-bold"
-              : "text-nexo-ink-3 hover:text-nexo-ink"
-          }`}
-        >
-          <Shield className="w-3 h-3 text-nexo-cta" />
-          Console Analista
-        </Link>
+        {/* PRD Privacidade: Aba do Console visível apenas para analistas autorizados */}
+        {isAnalyst && (
+          <Link
+            href="/analyst"
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
+              pathname.startsWith("/analyst")
+                ? "bg-white text-nexo-cta shadow-2xs font-bold"
+                : "text-nexo-ink-3 hover:text-nexo-ink"
+            }`}
+          >
+            <Shield className="w-3 h-3 text-nexo-cta" />
+            Console Analista
+          </Link>
+        )}
       </nav>
 
       {/* User Info & Persona Switcher */}
@@ -129,13 +132,13 @@ export function Navbar({ currentUser, onUserChange }: NavbarProps) {
           </div>
           <div className="hidden md:block">
             <div className="text-xs font-semibold text-nexo-ink leading-tight flex items-center gap-1">
-              {currentUser?.name || "Ana Souza"}
+              {currentUser?.name || "Usuário"}
               {isAnalyst && (
                 <span className="text-[10px] bg-blue-100 text-blue-700 px-1 rounded-sm font-medium">N2</span>
               )}
             </div>
             <div className="text-[11px] text-nexo-ink-3 leading-tight truncate max-w-[140px]">
-              {currentUser?.email || "ana.souza@nexo.com.br"}
+              {currentUser?.email || ""}
             </div>
           </div>
           <ChevronDown className="w-4 h-4 text-nexo-ink-3" />

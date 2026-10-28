@@ -1,23 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { analystService } from "@/services/analyst-service";
-import { prisma } from "@/lib/prisma";
+import { requireAnalyst } from "@/lib/auth-helper";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await requireAnalyst(req);
+    if (auth.error) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const { id } = await params;
-    const { content, analystId: requestedAnalystId } = await req.json();
+    const { content } = await req.json();
 
     if (!content || typeof content !== "string") {
-      return NextResponse.json({ error: "Conteúdo obrigatório." }, { status: 400 });
+      return NextResponse.json({ error: "Conteúdo da resposta é obrigatório." }, { status: 400 });
     }
 
-    let analystId = requestedAnalystId;
-    if (!analystId) {
-      const analyst = await prisma.user.findFirst({ where: { role: "ANALYST" } });
-      analystId = analyst?.id;
-    }
-
-    const message = await analystService.sendAnalystMessage(id, analystId, content);
+    const message = await analystService.sendAnalystMessage(id, auth.user!.id, content);
     return NextResponse.json({ success: true, message });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

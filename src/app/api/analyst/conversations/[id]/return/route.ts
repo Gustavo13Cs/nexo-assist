@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { analystService } from "@/services/analyst-service";
+import { requireAnalyst } from "@/lib/auth-helper";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await requireAnalyst(req);
+    if (auth.error) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const { id } = await params;
     const updated = await analystService.returnToAgent(id);
     return NextResponse.json({ success: true, conversation: updated });

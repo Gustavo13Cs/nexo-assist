@@ -4,20 +4,31 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
     const userIdCookie = req.cookies.get("nexo_user_id")?.value;
-    const requestedUserId = searchParams.get("userId") || userIdCookie;
-
-    let user = requestedUserId ? await prisma.user.findUnique({ where: { id: requestedUserId } }) : null;
-    if (!user) {
-      user = await prisma.user.findFirst({ where: { email: "ana.souza@nexo.com.br" } });
+    if (!userIdCookie) {
+      return NextResponse.json({ error: "Sessão não autenticada." }, { status: 401 });
     }
 
-    if (!user) {
-      return NextResponse.json({ error: "Usuário não autenticado." }, { status: 401 });
+    const sessionUser = await prisma.user.findUnique({ where: { id: userIdCookie } });
+    if (!sessionUser) {
+      return NextResponse.json({ error: "Usuário não encontrado." }, { status: 401 });
     }
 
-    const tickets = await ticketService.getUserTickets(user.id);
+    const { searchParams } = new URL(req.url);
+    const requestedUserId = searchParams.get("userId");
+
+    let targetUserId = sessionUser.id;
+    if (requestedUserId && requestedUserId !== sessionUser.id) {
+      if (sessionUser.role !== "ANALYST") {
+        return NextResponse.json(
+          { error: "PRIVACY_VIOLATION: Você não tem permissão para visualizar chamados de outro colaborador." },
+          { status: 403 }
+        );
+      }
+      targetUserId = requestedUserId;
+    }
+
+    const tickets = await ticketService.getUserTickets(targetUserId);
     return NextResponse.json({ tickets });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -26,8 +37,16 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const userIdCookie = req.cookies.get("nexo_user_id")?.value;
+    if (!userIdCookie) {
+      return NextResponse.json({ error: "Sessão não autenticada." }, { status: 401 });
+    }
+
     const body = await req.json();
     const { action, ...dto } = body;
+
+    // Força o userId do usuário autenticado para evitar spoofing
+    dto.userId = userIdCookie;
 
     if (action === "update") {
       const updated = await ticketService.updateTicket(dto);

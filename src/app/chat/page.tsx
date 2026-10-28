@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { DecisionInspector, DecisionData } from "@/components/DecisionInspector";
 import { TicketDraftCard, DraftTicketData } from "@/components/TicketDraftCard";
 import { TicketCardItem, TicketCardData } from "@/components/TicketCardItem";
-import { Send, Sparkles, Clock } from "lucide-react";
+import { Send, Sparkles, Clock, RotateCcw } from "lucide-react";
 
 interface MessageItem {
   id: string;
@@ -21,6 +22,7 @@ interface MessageItem {
 }
 
 export default function ChatPage() {
+  const router = useRouter();
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [conversation, setConversation] = useState<any>(null);
   const [messages, setMessages] = useState<MessageItem[]>([]);
@@ -41,9 +43,13 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const loadChat = async () => {
+  const loadChat = async (isBackground = false) => {
     try {
       const res = await fetch("/api/chat");
+      if (res.status === 401) {
+        router.push("/login");
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         setCurrentUser(data.user);
@@ -52,9 +58,7 @@ export default function ChatPage() {
         setMessageCount(data.messageCount || 0);
 
         // Encontrar rascunho mais recente nas mensagens se houver
-        const lastMsgWithDraft = [...(data.messages || [])]
-          .reverse()
-          .find((m) => m.draftTicket);
+        const lastMsgWithDraft = [...(data.messages || [])].reverse().find((m) => m.draftTicket);
         if (lastMsgWithDraft && lastMsgWithDraft.draftTicket) {
           try {
             setActiveDraft(JSON.parse(lastMsgWithDraft.draftTicket));
@@ -62,12 +66,20 @@ export default function ChatPage() {
         }
       }
     } catch (e) {
-      console.error("Erro ao carregar chat:", e);
+      if (!isBackground) console.error("Erro ao carregar chat:", e);
     }
   };
 
   useEffect(() => {
     loadChat();
+  }, []);
+
+  // Polling em tempo real (a cada 3s) para receber mensagens do analista humano e status
+  useEffect(() => {
+    const timer = setInterval(() => {
+      loadChat(true);
+    }, 3000);
+    return () => clearInterval(timer);
   }, []);
 
   useEffect(() => {
@@ -81,7 +93,6 @@ export default function ChatPage() {
     setInputText("");
     setLoading(true);
 
-    // Otimista
     const optimisticMsg: MessageItem = {
       id: "opt-" + Date.now(),
       senderRole: "USER",
@@ -130,8 +141,8 @@ export default function ChatPage() {
     handleSendMessage(optionLabel);
   };
 
-  const handleConfirmDraft = () => {
-    handleSendMessage("confirmar", activeDraft);
+  const handleConfirmDraft = (finalDraft?: DraftTicketData) => {
+    handleSendMessage("confirmar", finalDraft || activeDraft);
     setActiveDraft(null);
   };
 
@@ -152,6 +163,7 @@ export default function ChatPage() {
   };
 
   const isPaused = conversation?.status === "WAITING_HUMAN" || conversation?.status === "HUMAN_ACTIVE";
+  const isLimitReached = messageCount >= 30;
 
   return (
     <div className="min-h-screen flex flex-col bg-nexo-desk">
@@ -168,7 +180,7 @@ export default function ChatPage() {
         <div className="flex items-center gap-3">
           {isPaused ? (
             <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
-              <Clock className="w-3.5 h-3.5" /> Aguardando analista (Agent pausado)
+              <Clock className="w-3.5 h-3.5" /> Atendimento humano (Agent pausado)
             </span>
           ) : (
             <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
@@ -189,8 +201,8 @@ export default function ChatPage() {
             </div>
             <h2 className="text-sm font-bold text-nexo-ink">Atendimento Nexo Assist</h2>
             <p className="text-xs text-nexo-ink-3 max-w-sm mx-auto">
-              Descreva o que está acontecendo com suas próprias palavras. Vou verificar seus chamados, buscar na central
-              de ajuda ou acionar um analista.
+              Descreva o que está acontecendo com suas próprias palavras. O assistente consulta seus chamados, busca na
+              central de ajuda e aciona um analista quando precisa.
             </p>
           </div>
 
@@ -222,7 +234,7 @@ export default function ChatPage() {
               );
             }
 
-            // Mensagem do Analista Humano
+            // Mensagem do Analista Humano (Suporte N1/N2)
             if (isAnalyst) {
               return (
                 <div key={msg.id} className="flex flex-col items-start space-y-1 max-w-lg">
@@ -239,7 +251,7 @@ export default function ChatPage() {
               );
             }
 
-            // Mensagem do Nexo Assist (Agent com Pílulas de Ação e Auditoria)
+            // Mensagem do Nexo Assist
             const badges: string[] = msg.actionBadges ? JSON.parse(msg.actionBadges) : [];
             const quickOpts: Array<{ id: string; label: string }> = msg.quickOptions
               ? JSON.parse(msg.quickOptions)
@@ -249,7 +261,7 @@ export default function ChatPage() {
 
             return (
               <div key={msg.id} className="flex flex-col items-start space-y-2 max-w-xl animate-in fade-in duration-150">
-                {/* Header do Agente + Pílulas de Ações Executadas */}
+                {/* Header do Agente + Pílulas de Ações */}
                 <div className="flex items-center gap-2 flex-wrap pl-1">
                   <span className="text-xs font-bold text-nexo-ink">{msg.senderName}</span>
 
@@ -280,7 +292,7 @@ export default function ChatPage() {
                   {msg.content}
                 </div>
 
-                {/* Opções de Resposta Rápida (Ex: 1 Só eu, 2 Minha equipe) */}
+                {/* Opções de Resposta Rápida */}
                 {quickOpts.length > 0 && (
                   <div className="flex items-center gap-2 flex-wrap pt-1 pl-1">
                     {quickOpts.map((opt) => (
@@ -288,7 +300,7 @@ export default function ChatPage() {
                         key={opt.id}
                         onClick={() => handleQuickOption(opt.label)}
                         disabled={loading}
-                        className="px-3 py-1.5 rounded-xl bg-white border border-nexo-rule text-xs font-medium text-nexo-ink hover:bg-nexo-desk hover:border-nexo-rule-strong transition shadow-2xs active:scale-98 cursor-pointer flex items-center gap-1.5"
+                        className="px-3 py-1.5 rounded-xl bg-white border border-nexo-rule text-xs font-medium text-nexo-ink hover:bg-nexo-desk hover:border-nexo-rule transition shadow-2xs active:scale-98 cursor-pointer flex items-center gap-1.5"
                       >
                         {opt.label}
                       </button>
@@ -296,17 +308,17 @@ export default function ChatPage() {
                   </div>
                 )}
 
-                {/* Card de Rascunho de Chamado (Tela 2) */}
+                {/* Card de Rascunho com Edição e Confirmação */}
                 {draft && (
                   <TicketDraftCard
                     draft={draft}
-                    onConfirm={handleConfirmDraft}
+                    onConfirm={(finalDraft) => handleConfirmDraft(finalDraft)}
                     onCancel={handleCancelDraft}
                     isConfirmed={false}
                   />
                 )}
 
-                {/* Cards de Chamados Existentes (Tela 3) */}
+                {/* Cards de Chamados Existentes */}
                 {ticketCards.length > 0 && (
                   <div className="w-full space-y-2 pt-1">
                     {ticketCards.length > 1 ? (
@@ -339,49 +351,58 @@ export default function ChatPage() {
 
         {/* Input Bar & Footer */}
         <div className="sticky bottom-4 pt-2">
-          {/* Banner quando pausado aguardando analista */}
           {isPaused && (
             <div className="mb-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-amber-600" />
-                <span>Esta conversa está com um atendente humano. O assistente automático está pausado.</span>
+                <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>Esta conversa foi transferida para um analista humano. O assistente automático está pausado enquanto você é atendido.</span>
+              </div>
+            </div>
+          )}
+
+          {isLimitReached ? (
+            <div className="p-4 rounded-2xl bg-white border border-nexo-rule shadow-md flex items-center justify-between">
+              <div>
+                <div className="text-xs font-bold text-nexo-ink">Limite de sessão atingido (30 mensagens)</div>
+                <div className="text-[11px] text-nexo-ink-3">Para garantir qualidade e segurança, inicie um novo atendimento.</div>
               </div>
               <button
-                onClick={() => handleSendMessage("Quero retomar com o assistente")}
-                className="text-xs font-bold text-amber-900 underline hover:opacity-80"
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 rounded-xl bg-nexo-cta text-white text-xs font-semibold hover:bg-nexo-cta/90 transition shadow-xs flex items-center gap-1.5 cursor-pointer"
               >
-                Retomar bot
+                <RotateCcw className="w-3.5 h-3.5" />
+                Novo Atendimento
+              </button>
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl border border-nexo-rule shadow-lg p-2 flex items-center gap-2">
+              <input
+                type="text"
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }}
+                placeholder="Escreva para o Nexo…"
+                disabled={loading}
+                className="flex-1 px-3 py-2 text-xs text-nexo-ink placeholder:text-nexo-ink-3/60 focus:outline-hidden bg-transparent"
+              />
+
+              <button
+                onClick={() => handleSendMessage()}
+                disabled={loading || !inputText.trim()}
+                className="px-4 py-2 rounded-xl bg-nexo-cta text-white text-xs font-semibold hover:bg-nexo-cta/90 transition shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+              >
+                <span>Enviar</span>
+                <Send className="w-3.5 h-3.5" />
               </button>
             </div>
           )}
 
-          <div className="bg-white rounded-2xl border border-nexo-rule shadow-lg p-2 flex items-center gap-2">
-            <input
-              type="text"
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendMessage();
-                }
-              }}
-              placeholder="Escreva para o Nexo…"
-              disabled={loading || messageCount >= 30}
-              className="flex-1 px-3 py-2 text-xs text-nexo-ink placeholder:text-nexo-ink-3/60 focus:outline-hidden bg-transparent"
-            />
-
-            <button
-              onClick={() => handleSendMessage()}
-              disabled={loading || !inputText.trim() || messageCount >= 30}
-              className="px-4 py-2 rounded-xl bg-nexo-cta text-white text-xs font-semibold hover:bg-nexo-cta/90 transition shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
-            >
-              <span>Enviar</span>
-              <Send className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          {/* Session Limit Counter (Requisito 2 do PRD) */}
+          {/* Session Limit Counter */}
           <div className="flex items-center justify-between text-[11px] text-nexo-ink-3 px-2 pt-2">
             <span>{messageCount}/30 mensagens nesta sessão</span>
             <div className="flex items-center gap-3">
@@ -390,7 +411,7 @@ export default function ChatPage() {
                   setSelectedDecision({
                     intent: "ARQUITETURA_DE_DECISAO",
                     entities: { session: conversation?.id },
-                    ruleApplied: "PRD: Visibilidade das Decisões - auditoria completa de qualquer resposta do agente.",
+                    ruleApplied: "PRD Requisito 7: Visibilidade das Decisões - auditoria completa de qualquer resposta do agente.",
                     confidence: 0.98,
                     action: "SHOW_DECISION_INSPECTOR",
                     reasoning: "Auditoria disponível para conformidade e transparência algorítmica exigida no desafio.",

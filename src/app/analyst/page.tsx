@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Search,
   Clock,
@@ -16,6 +17,7 @@ import {
 } from "lucide-react";
 
 export default function AnalystConsolePage() {
+  const router = useRouter();
   const [filter, setFilter] = useState<"all" | "for_you" | "with_agent" | "my">("for_you");
   const [search, setSearch] = useState("");
   const [conversations, setConversations] = useState<any[]>([]);
@@ -28,26 +30,29 @@ export default function AnalystConsolePage() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const fetchConversations = async () => {
+  const fetchConversations = async (isBackground = false) => {
     try {
       const res = await fetch(`/api/analyst/conversations?filter=${filter}&search=${encodeURIComponent(search)}`);
+      if (res.status === 401 || res.status === 403) {
+        if (!isBackground) router.push("/login");
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         setConversations(data.conversations || []);
         setCounts(data.counts || { all: 0, for_you: 0, with_agent: 0, my: 0 });
         setCurrentAnalyst(data.currentAnalyst);
 
-        // Selecionar o primeiro da lista se nenhum selecionado
         if (!selectedConvId && data.conversations.length > 0) {
           setSelectedConvId(data.conversations[0].id);
         }
       }
     } catch (e) {
-      console.error(e);
+      if (!isBackground) console.error(e);
     }
   };
 
-  const fetchDetails = async (id: string) => {
+  const fetchDetails = async (id: string, isBackground = false) => {
     try {
       const res = await fetch(`/api/analyst/conversations/${id}`);
       if (res.ok) {
@@ -55,7 +60,7 @@ export default function AnalystConsolePage() {
         setConvDetails(data);
       }
     } catch (e) {
-      console.error(e);
+      if (!isBackground) console.error(e);
     }
   };
 
@@ -68,6 +73,17 @@ export default function AnalystConsolePage() {
       fetchDetails(selectedConvId);
     }
   }, [selectedConvId]);
+
+  // Polling em tempo real a cada 3s para o console do analista
+  useEffect(() => {
+    const timer = setInterval(() => {
+      fetchConversations(true);
+      if (selectedConvId) {
+        fetchDetails(selectedConvId, true);
+      }
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [selectedConvId, filter, search]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -182,7 +198,7 @@ export default function AnalystConsolePage() {
         </div>
       </header>
 
-      {/* Main 3 Columns Layout (Fiel aos Frames 3 e 4 do nexo.pen) */}
+      {/* Main 3 Columns Layout */}
       <div className="flex-1 flex overflow-hidden">
         {/* COLUNA 1: Lista de Conversas e Fila */}
         <aside className="w-80 md:w-88 border-r border-nexo-rule flex flex-col bg-nexo-desk/50 shrink-0">
@@ -276,7 +292,6 @@ export default function AnalystConsolePage() {
 
                     <p className="text-[11px] text-nexo-ink-2 truncate mb-2">{c.lastMessageText}</p>
 
-                    {/* Tag de Status da Conversa */}
                     <div>
                       {c.tagType === "warning" ? (
                         <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
@@ -306,7 +321,7 @@ export default function AnalystConsolePage() {
           </div>
         </aside>
 
-        {/* COLUNA 2: Chat com o Colaborador */}
+        {/* COLUNA 2: Chat do Atendente */}
         <section className="flex-1 flex flex-col bg-white overflow-hidden border-r border-nexo-rule">
           {convDetails ? (
             <>
@@ -328,7 +343,7 @@ export default function AnalystConsolePage() {
                       {isAssumedByMe ? (
                         <span className="text-emerald-600 font-medium">Você está atendendo esta conversa</span>
                       ) : isWaitingHuman ? (
-                        <span className="text-amber-600 font-medium">Aguardando atendente</span>
+                        <span className="text-amber-600 font-medium">Aguardando atendente (Agent pausado)</span>
                       ) : (
                         <span>Com o assistente Nexo</span>
                       )}
@@ -450,7 +465,7 @@ export default function AnalystConsolePage() {
                   return null;
                 })}
 
-                {/* Banner de Aguardando Atendente (Fiel ao Frame 3) */}
+                {/* Banner de Aguardando Atendente */}
                 {isWaitingHuman && (
                   <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 space-y-2 mt-4 shadow-xs">
                     <div className="flex items-center justify-between">
@@ -462,7 +477,7 @@ export default function AnalystConsolePage() {
                     </div>
                     {convDetails.conversation.transferSummary && (
                       <p className="text-xs text-amber-800 bg-white/60 p-2.5 rounded-xl border border-amber-200/60">
-                        <strong>Resumo do Agent:</strong> {convDetails.conversation.transferSummary}
+                        <strong>Resumo do caso:</strong> {convDetails.conversation.transferSummary}
                       </p>
                     )}
                     <div className="flex items-center gap-2 pt-1">
@@ -524,7 +539,7 @@ export default function AnalystConsolePage() {
           )}
         </section>
 
-        {/* COLUNA 3: Painel Lateral de Chamados do Colaborador (Fiel ao Frame 3 e 4) */}
+        {/* COLUNA 3: Painel Lateral de Chamados do Colaborador */}
         <aside className="w-80 border-l border-nexo-rule bg-nexo-desk/30 flex flex-col shrink-0 overflow-y-auto p-5 space-y-6">
           {convDetails ? (
             <>
@@ -547,7 +562,7 @@ export default function AnalystConsolePage() {
                         {convDetails.relatedTicket.ticketNumber}
                       </span>
                       <span className="text-[10px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
-                        {convDetails.relatedTicket.status}
+                        {convDetails.relatedTicket.status === "AGUARDANDO_ANALISTA" ? "Aguardando Analista" : "Em Andamento"}
                       </span>
                     </div>
                     <div className="font-semibold text-xs text-nexo-ink leading-snug">
@@ -557,8 +572,8 @@ export default function AnalystConsolePage() {
                       {convDetails.relatedTicket.category} · prioridade {convDetails.relatedTicket.priority.toLowerCase()}
                     </div>
                     <div className="pt-2 border-t border-nexo-rule text-[11px] text-amber-700 flex items-center justify-between">
-                      <span>Transferido para analista</span>
-                      <span>10:05</span>
+                      <span>Status do chamado</span>
+                      <span>{new Date(convDetails.relatedTicket.lastUpdate).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
                     </div>
                   </div>
                 </div>
@@ -575,7 +590,7 @@ export default function AnalystConsolePage() {
                     <div key={t.id} className="p-3 rounded-xl bg-white border border-nexo-rule shadow-2xs space-y-1">
                       <div className="font-medium text-xs text-nexo-ink">{t.title}</div>
                       <div className="text-[11px] text-nexo-ink-3">
-                        {t.ticketNumber} · {t.status}
+                        {t.ticketNumber} · {t.status === "AGUARDANDO_ANALISTA" ? "Aguardando analista" : "Em andamento"}
                       </div>
                     </div>
                   ))}
@@ -592,10 +607,9 @@ export default function AnalystConsolePage() {
               </div>
 
               <div className="pt-2">
-                <button className="text-xs font-medium text-nexo-cta hover:underline flex items-center gap-1 cursor-pointer">
-                  <span>Ver todos os chamados da {convDetails.user.name.split(" ")[0]}</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </button>
+                <span className="text-xs text-nexo-ink-3 flex items-center gap-1">
+                  <span>Visualizando histórico completo de {convDetails.user.name.split(" ")[0]}</span>
+                </span>
               </div>
             </>
           ) : (

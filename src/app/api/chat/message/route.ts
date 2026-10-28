@@ -4,19 +4,18 @@ import { agentService } from "@/agent/agent-service";
 
 export async function POST(req: NextRequest) {
   try {
-    const { content, draftPayload, userId: requestedUserId } = await req.json();
-
     const userIdCookie = req.cookies.get("nexo_user_id")?.value;
-    const targetUserId = requestedUserId || userIdCookie;
 
-    let user = targetUserId ? await prisma.user.findUnique({ where: { id: targetUserId } }) : null;
-    if (!user) {
-      user = await prisma.user.findFirst({ where: { email: "ana.souza@nexo.com.br" } });
+    if (!userIdCookie) {
+      return NextResponse.json({ error: "Sessão não autenticada. Faça login para continuar." }, { status: 401 });
     }
 
+    const user = await prisma.user.findUnique({ where: { id: userIdCookie } });
     if (!user) {
-      return NextResponse.json({ error: "Usuário não autenticado." }, { status: 401 });
+      return NextResponse.json({ error: "Usuário não localizado." }, { status: 401 });
     }
+
+    const { content, draftPayload } = await req.json();
 
     if (!content || typeof content !== "string") {
       return NextResponse.json({ error: "Conteúdo da mensagem é obrigatório." }, { status: 400 });

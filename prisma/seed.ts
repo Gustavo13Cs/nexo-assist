@@ -3,7 +3,7 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("Iniciando seed do banco Nexo Assist...");
+  console.log("Iniciando seed completo do banco Nexo Assist...");
 
   // Limpar tabelas existentes
   await prisma.message.deleteMany();
@@ -173,8 +173,7 @@ async function main() {
   // 3. Chamados (Tickets)
   const now = new Date();
   const daysAgo = (days: number, hours = 0) => {
-    const d = new Date(now.getTime() - (days * 24 + hours) * 60 * 60 * 1000);
-    return d;
+    return new Date(now.getTime() - (days * 24 + hours) * 60 * 60 * 1000);
   };
   const hoursFromNow = (h: number) => new Date(now.getTime() + h * 60 * 60 * 1000);
 
@@ -193,7 +192,7 @@ async function main() {
       affectedScope: "INDIVIDUAL",
       userId: ana.id,
       assignedToId: rafael.id,
-      slaDeadline: daysAgo(2), // SLA venceu há 2 dias (prazo era 3 dias úteis)
+      slaDeadline: daysAgo(2), // SLA venceu há 2 dias
       createdAt: daysAgo(6, 4),
       lastUpdate: daysAgo(5),
     },
@@ -223,7 +222,7 @@ async function main() {
     data: {
       ticketNumber: "REQ-10442",
       title: "Segundo monitor para home office",
-      description: "Solicitação de monitor Dell 24 polegadas para setup de trabalho remoto.",
+      description: "Solicitação de monitor Dell 24 polegadas para setup de trabalho remoto aprovado pelo gestor.",
       type: "REQ",
       category: "Hardware",
       subcategory: "Periféricos",
@@ -274,7 +273,7 @@ async function main() {
     },
   });
 
-  // Chamados de Carla Mendes (outro usuário - para garantir privacidade e cenários de console)
+  // Chamados de Carla Mendes
   await prisma.ticket.create({
     data: {
       ticketNumber: "INC-20150",
@@ -387,9 +386,11 @@ async function main() {
         decisionDetail: JSON.stringify({
           intent: "CONSULTAR_STATUS_CHAMADO",
           entities: { ticketNumber: "INC-20311", category: "Hardware" },
-          rule: "Anexo A: Prazo de prioridade Média é 3 dias úteis. Chamado parado há 5 dias é considerado vencido, disparando oferta de transbordo para analista.",
+          ruleApplied:
+            "Anexo A: Prazo de prioridade Média é 3 dias úteis. Chamado parado há 5 dias é considerado vencido, disparando oferta de transbordo para analista.",
           confidence: 0.98,
           action: "OFFER_TRANSFER",
+          reasoning: "Chamado parado há 5 dias sem resposta do analista. Ultrapassou o SLA pactuado de 3 dias úteis.",
         }),
         createdAt: new Date(Date.now() - 20 * 60 * 1000),
       },
@@ -419,31 +420,85 @@ async function main() {
   });
 
   // Conversa com Carla Mendes (Transferida)
-  await prisma.conversation.create({
+  const convCarla = await prisma.conversation.create({
     data: {
       userId: carla.id,
       ticketId: carlaTicket.id,
       status: "WAITING_HUMAN",
       transferReason: "Urgência alta - fechamento financeiro no mesmo dia",
-      transferSummary: "Carla necessita de acesso emergencial ao SAP para fechamento contábil hoje.",
+      transferSummary: "Carla necessita de acesso emergencial ao SAP para fechamento contábil hoje às 17h.",
       confidence: 0.92,
       messageCount: 4,
       createdAt: daysAgo(0, 1),
     },
   });
 
+  await prisma.message.createMany({
+    data: [
+      {
+        conversationId: convCarla.id,
+        senderRole: "USER",
+        senderName: "Carla Mendes",
+        content: "Preciso de acesso ao SAP ainda hoje para fechamento financeiro.",
+        createdAt: new Date(Date.now() - 40 * 60 * 1000),
+      },
+      {
+        conversationId: convCarla.id,
+        senderRole: "AGENT",
+        senderName: "Nexo Assist",
+        content: "Compreendo a urgência. Criei o chamado INC-20518 com prioridade Alta (resposta em até 4h). Como o fechamento é hoje, estou transferindo imediatamente para o analista de plantão.",
+        actionBadges: JSON.stringify(["classificou prioridade Alta", "transferiu para analista"]),
+        createdAt: new Date(Date.now() - 39 * 60 * 1000),
+      },
+      {
+        conversationId: convCarla.id,
+        senderRole: "SYSTEM",
+        senderName: "Sistema",
+        content: "Transferida para Suporte N2 · 09:58",
+        createdAt: new Date(Date.now() - 39 * 60 * 1000),
+      },
+    ],
+  });
+
   // Conversa com Bruno Tavares (Agent pediu ajuda · confiança 41%)
-  await prisma.conversation.create({
+  const convBruno = await prisma.conversation.create({
     data: {
       userId: bruno.id,
       status: "WAITING_HUMAN",
       transferReason: "Baixa segurança na classificação técnica do problema",
       transferSummary:
         "Bruno relatou problemas com script de automação de marketing em ambiente híbrido não documentado na central de ajuda.",
-      confidence: 0.41, // Confiança baixa (< 60%), gerando transbordo automático!
+      confidence: 0.41,
       messageCount: 3,
       createdAt: daysAgo(0, 1),
     },
+  });
+
+  await prisma.message.createMany({
+    data: [
+      {
+        conversationId: convBruno.id,
+        senderRole: "USER",
+        senderName: "Bruno Tavares",
+        content: "Estou tendo falhas intermitentes com script de automação em ambiente híbrido não documentado na central.",
+        createdAt: new Date(Date.now() - 50 * 60 * 1000),
+      },
+      {
+        conversationId: convBruno.id,
+        senderRole: "AGENT",
+        senderName: "Nexo Assist",
+        content: "Vou chamar um analista para isso. Identifiquei que este problema envolve particularidades técnicas avançadas fora da base de autoatendimento.",
+        actionBadges: JSON.stringify(["baixa confiança (41%)", "transferiu para analista"]),
+        createdAt: new Date(Date.now() - 49 * 60 * 1000),
+      },
+      {
+        conversationId: convBruno.id,
+        senderRole: "SYSTEM",
+        senderName: "Sistema",
+        content: "Transferida para Suporte N2 · 09:51",
+        createdAt: new Date(Date.now() - 49 * 60 * 1000),
+      },
+    ],
   });
 
   // Conversa com Diego Ramos (Agent atendendo)

@@ -6,47 +6,33 @@ export async function POST(req: NextRequest) {
     const { email } = await req.json();
 
     if (!email || typeof email !== "string") {
-      return NextResponse.json({ error: "E-mail corporativo obrigatório." }, { status: 400 });
+      return NextResponse.json({ error: "E-mail corporativo é obrigatório." }, { status: 400 });
     }
 
     const cleanEmail = email.trim().toLowerCase();
 
-    // Busca usuário pelo e-mail
-    let user = await prisma.user.findUnique({
+    // PRD: "Login (Tela 1): e-mail corporativo e senha, aceitando os funcionários dos seus dados de exemplo com qualquer senha."
+    const user = await prisma.user.findUnique({
       where: { email: cleanEmail },
     });
 
     if (!user) {
-      // Se não existe, cria como funcionário padrão para facilitar testes com qualquer e-mail da Nexo
-      const nameFromEmail = cleanEmail
-        .split("@")[0]
-        .split(".")
-        .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-        .join(" ");
-
-      const initials = nameFromEmail
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2);
-
-      user = await prisma.user.create({
-        data: {
-          email: cleanEmail,
-          name: nameFromEmail || "Colaborador Nexo",
-          role: cleanEmail.includes("analista") || cleanEmail.includes("rafael") || cleanEmail.includes("suporte") ? "ANALYST" : "EMPLOYEE",
-          department: "Geral",
-          initials: initials || "NX",
+      return NextResponse.json(
+        {
+          error:
+            "Usuário não localizado no diretório corporativo da Nexo. Utilize um dos usuários cadastrados (ex: ana.souza@nexo.com.br, rafael.lima@nexo.com.br, carla.mendes@nexo.com.br).",
         },
-      });
+        { status: 401 }
+      );
     }
 
     const response = NextResponse.json({ success: true, user });
 
-    // Salva cookie de sessão simples
+    // Cookie de sessão seguro
     response.cookies.set("nexo_user_id", user.id, {
-      httpOnly: false,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 24 * 7, // 7 dias
     });

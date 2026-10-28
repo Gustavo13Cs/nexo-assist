@@ -4,15 +4,15 @@ import { agentService } from "@/agent/agent-service";
 
 export async function GET(req: NextRequest) {
   try {
-    const userIdCookie = req.cookies.get("nexo_user_id")?.value;
-    let user = userIdCookie ? await prisma.user.findUnique({ where: { id: userIdCookie } }) : null;
+    const userId = req.cookies.get("nexo_user_id")?.value;
 
-    if (!user) {
-      user = await prisma.user.findFirst({ where: { email: "ana.souza@nexo.com.br" } });
+    if (!userId) {
+      return NextResponse.json({ error: "Sessão não autenticada." }, { status: 401 });
     }
 
+    const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
-      return NextResponse.json({ error: "Nenhum usuário ativo." }, { status: 401 });
+      return NextResponse.json({ error: "Usuário não encontrado." }, { status: 401 });
     }
 
     const conversation = await agentService.getOrCreateActiveConversation(user.id);

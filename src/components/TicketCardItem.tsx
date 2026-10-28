@@ -11,6 +11,8 @@ export interface TicketCardData {
   priority?: string;
   isOverdue?: boolean;
   daysSinceLastUpdate?: number;
+  description?: string;
+  canReopen?: boolean;
 }
 
 interface TicketCardItemProps {
@@ -36,7 +38,7 @@ export function TicketCardItem({ ticket, onSelect, expanded = false }: TicketCar
     return (
       <button
         onClick={() => onSelect && onSelect(ticket.number)}
-        className="w-full text-left p-3.5 rounded-xl border border-nexo-rule bg-white hover:bg-nexo-desk hover:border-nexo-rule-strong transition shadow-2xs flex items-center justify-between gap-3 group cursor-pointer"
+        className="w-full text-left p-3.5 rounded-xl border border-nexo-rule bg-white hover:bg-nexo-desk hover:border-nexo-rule transition shadow-2xs flex items-center justify-between gap-3 group cursor-pointer"
       >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
@@ -47,6 +49,11 @@ export function TicketCardItem({ ticket, onSelect, expanded = false }: TicketCar
             {ticket.isOverdue && (
               <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-md border border-rose-200 flex items-center gap-1">
                 <AlertCircle className="w-3 h-3" /> Vencido
+              </span>
+            )}
+            {ticket.canReopen && (
+              <span className="text-[10px] font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-200">
+                Pode reabrir
               </span>
             )}
           </div>
@@ -79,9 +86,8 @@ export function TicketCardItem({ ticket, onSelect, expanded = false }: TicketCar
       <div className="p-5 space-y-4">
         <div>
           <h4 className="font-semibold text-nexo-ink text-base mb-1">{ticket.title}</h4>
-          <p className="text-xs text-nexo-ink-2 bg-nexo-desk/50 p-3 rounded-xl border border-nexo-rule/60">
-            Lentidão geral desde a atualização recente do Windows. Procedimentos básicos de reinicialização já
-            executados.
+          <p className="text-xs text-nexo-ink-2 bg-nexo-desk/50 p-3 rounded-xl border border-nexo-rule/60 whitespace-pre-line">
+            {ticket.description || "Sem descrição detalhada registrada."}
           </p>
         </div>
 
@@ -97,7 +103,7 @@ export function TicketCardItem({ ticket, onSelect, expanded = false }: TicketCar
             <span className="text-[11px] text-nexo-ink-3 block mb-0.5">Última atualização</span>
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="text-xs font-semibold text-nexo-ink">
-                {ticket.daysSinceLastUpdate ? `há ${ticket.daysSinceLastUpdate} dias` : "recente"}
+                {typeof ticket.daysSinceLastUpdate === "number" ? `há ${ticket.daysSinceLastUpdate} dias` : "recente"}
               </span>
               {ticket.isOverdue && (
                 <span className="text-[11px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-md border border-rose-200 flex items-center gap-0.5">

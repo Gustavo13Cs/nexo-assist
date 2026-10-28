@@ -98,6 +98,7 @@ export class AgentService {
       content,
       conversationHistory: history,
       currentDraft: draftPayload,
+      activeTicketId: conversation.ticketId,
     });
 
     // 3. Gravar resposta do agente com metadados estruturados de visibilidade
@@ -143,6 +144,7 @@ export class AgentService {
       where: { id: conversation.id },
       data: {
         status: newStatus,
+        ticketId: decision.targetTicketId || conversation.ticketId,
         transferReason,
         transferSummary,
         confidence: decision.decisionDetail.confidence,
