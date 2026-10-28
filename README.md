@@ -4,7 +4,22 @@ Solução desenvolvida para o desafio prático de contratação da Nexo. O **Nex
 
 ---
 
-## 🚀 Como Rodar a Aplicação
+## 🌐 Deploy em Produção (Diferencial)
+
+A aplicação está publicada e pronta para testes online sem necessidade de instalação local:
+
+🔗 **Link de Acesso Online:** **[https://nexo-nine-theta.vercel.app](https://nexo-nine-theta.vercel.app)**  
+*(Espelho oficial na Vercel: [https://nexo-3reloumqz-gustavocunha0401-2427s-projects.vercel.app](https://nexo-3reloumqz-gustavocunha0401-2427s-projects.vercel.app))*
+
+> **Como o deploy foi arquitetado:**
+> O deploy foi realizado na plataforma **Vercel** conectado diretamente ao repositório GitHub (`Gustavo13Cs/nexo-assist`). Para garantir o funcionamento autônomo do banco de dados SQLite no ambiente serverless (cujo sistema de arquivos raiz é read-only), implementamos:
+> 1. Pipeline de build que gera o schema do Prisma e popula os dados do Anexo B (`prisma db push && npm run seed`).
+> 2. Mecanismo de inicialização transparente no `src/lib/prisma.ts` que copia o SQLite pré-populado para o diretório `/tmp`, garantindo escrita e persistência durante a sessão sem falhas de permissão.
+> 3. Integração com o fallback autônomo baseado no Anexo A, permitindo que a aplicação responda a qualquer caso com 0 custos de API e latência imediata.
+
+---
+
+## 🚀 Como Rodar a Aplicação Localmente
 
 Você pode executar o **Nexo Assist** de duas maneiras: diretamente via **Docker** (recomendado para homologação em container isolado) ou localmente via **Node.js**.
 
