@@ -1,0 +1,105 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id               String         @id @default(cuid())
+  email            String         @unique
+  name             String
+  role             String         @default("EMPLOYEE") // EMPLOYEE, ANALYST
+  department       String         @default("Geral")
+  initials         String         @default("AS")
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  tickets          Ticket[]       @relation("UserTickets")
+  assignedTickets  Ticket[]       @relation("AssignedTickets")
+  conversations    Conversation[] @relation("UserConversations")
+  assignedConvs    Conversation[] @relation("AssignedConversations")
+}
+
+model Ticket {
+  id             String         @id @default(cuid())
+  ticketNumber   String         @unique // e.g. "INC-20311", "REQ-10442"
+  title          String
+  description    String
+  type           String         // "INC" (Incidente) ou "REQ" (Requisição)
+  category       String         // "Acesso", "Rede e VPN", "Hardware", "Software", "E-mail", "Outros"
+  subcategory    String?
+  priority       String         // "CRITICA", "ALTA", "MEDIA", "BAIXA"
+  status         String         // "AGUARDANDO_ANALISTA", "EM_ANDAMENTO", "APROVADO", "RESOLVIDO", "CANCELADO"
+  affectedScope  String         @default("INDIVIDUAL") // "INDIVIDUAL", "EQUIPE", "EMPRESA"
+  
+  userId         String
+  user           User           @relation("UserTickets", fields: [userId], references: [id])
+  
+  assignedToId   String?
+  assignedTo     User?          @relation("AssignedTickets", fields: [assignedToId], references: [id])
+  
+  slaDeadline    DateTime
+  lastUpdate     DateTime       @default(now())
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  resolvedAt     DateTime?
+
+  conversations  Conversation[]
+}
+
+model KnowledgeArticle {
+  id            String   @id @default(cuid())
+  title         String
+  content       String
+  category      String
+  tags          String   // JSON string array or comma separated
+  applicableOs  String?  // e.g. "Windows 10", "Windows 11", "Qualquer"
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Conversation {
+  id                 String    @id @default(cuid())
+  userId             String
+  user               User      @relation("UserConversations", fields: [userId], references: [id])
+  
+  ticketId           String?
+  ticket             Ticket?   @relation(fields: [ticketId], references: [id])
+  
+  status             String    @default("AGENT_ACTIVE") // "AGENT_ACTIVE", "WAITING_HUMAN", "HUMAN_ACTIVE", "RESOLVED"
+  
+  assignedAnalystId  String?
+  assignedAnalyst    User?     @relation("AssignedConversations", fields: [assignedAnalystId], references: [id])
+  
+  transferReason     String?
+  transferSummary    String?
+  confidence         Float?    // 0.0 to 1.0 (e.g. 0.41)
+  messageCount       Int       @default(0)
+  
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  messages           Message[]
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  senderRole     String       // "USER", "AGENT", "ANALYST", "SYSTEM"
+  senderName     String
+  content        String
+  
+  // Rich payload fields matching nexo.pen
+  actionBadges   String?      // JSON array of string pills (e.g. ["consultou seus chamados", "consultou o SLA"])
+  quickOptions   String?      // JSON array of options for user selection (e.g. [{id: "1", label: "Só eu"}])
+  draftTicket    String?      // JSON of ticket draft awaiting user confirmation
+  ticketCards    String?      // JSON array of ticket cards
+  decisionDetail String?      // JSON structured decision explanation (intent, entities, rules, confidence, reason)
+
+  createdAt      DateTime     @default(now())
+}
